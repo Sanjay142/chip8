@@ -1,156 +1,110 @@
-import pygame
 import sys
-import time
+import pygame
 import random
 
 class Chip8:
-    def __init__(self):
-        self.memory = [0] * 4096
-        self.V = [0] * 16
-        self.I = 0
-        self.pc = 0x200
-        self.stack = []
-        self.delay_timer = 0
-        self.sound_timer = 0
-        self.display = [0] * (64 * 32)
-        self.keys = [0] * 16
-        self.running = True
-
-        self.fontset = [
-            0xF0, 0x90, 0x90, 0x90, 0xF0,  # 0
-            0x20, 0x60, 0x20, 0x20, 0x70,  # 1
-            0xF0, 0x10, 0xF0, 0x80, 0xF0,  # 2
-            0xF0, 0x10, 0xF0, 0x10, 0xF0,  # 3
-            0x90, 0x90, 0xF0, 0x10, 0x10,  # 4
-            0xF0, 0x80, 0xF0, 0x10, 0xF0,  # 5
-            0xF0, 0x80, 0xF0, 0x90, 0xF0,  # 6
-            0xF0, 0x10, 0x20, 0x40, 0x40,  # 7
-            0xF0, 0x90, 0xF0, 0x90, 0xF0,  # 8
-            0xF0, 0x90, 0xF0, 0x10, 0xF0,  # 9
-            0xF0, 0x90, 0xF0, 0x90, 0x90,  # A
-            0xE0, 0x90, 0xE0, 0x90, 0xE0,  # B
-            0xF0, 0x80, 0x80, 0x80, 0xF0,  # C
-            0xE0, 0x90, 0x90, 0x90, 0xE0,  # D
-            0xF0, 0x80, 0xF0, 0x80, 0xF0,  # E
-            0xF0, 0x80, 0xF0, 0x80, 0x80   # F
+    def __init__(s):
+        s.memory = [0] * 4096
+        s.V = [0] * 16
+        s.I = 0
+        s.pc = 0x200
+        s.stack = []
+        s.delay_timer = 0
+        s.sound_timer = 0
+        s.display = [0] * (64 * 32)
+        s.keys = [0] * 16
+        s.fontset = [
+            0xF0, 0x90, 0x90, 0x90, 0xF0, 0x20, 0x60, 0x20, 0x20, 0x70,
+            0xF0, 0x10, 0xF0, 0x80, 0xF0, 0xF0, 0x10, 0xF0, 0x10, 0xF0,
+            0x90, 0x90, 0xF0, 0x10, 0x10, 0xF0, 0x80, 0xF0, 0x10, 0xF0,
+            0xF0, 0x80, 0xF0, 0x90, 0xF0, 0xF0, 0x10, 0x20, 0x40, 0x40,
+            0xF0, 0x90, 0xF0, 0x90, 0xF0, 0xF0, 0x90, 0xF0, 0x10, 0xF0
         ]
-
-        for i in range(len(self.fontset)):
-            self.memory[i] = self.fontset[i]
-
-    def load_rom(self, filename):
+        for i in range(len(s.fontset)):
+            s.memory[i] = s.fontset[i]
+        
+        pygame.init()
+        s.scale = 10
+        s.screen = pygame.display.set_mode((64 * s.scale, 32 * s.scale))
+        pygame.display.set_caption("CHIP-8 Emulator")
+    
+    def draw_display(s):
+        s.screen.fill((0, 0, 0))
+        for y in range(32):
+            for x in range(64):
+                if s.display[y * 64 + x]:
+                    pygame.draw.rect(s.screen, (255, 255, 255), (x * s.scale, y * s.scale, s.scale, s.scale))
+        pygame.display.flip()
+    
+    def load_rom(s, filename):
         with open(filename, 'rb') as f:
             rom = f.read()
         for i in range(len(rom)):
-            self.memory[0x200 + i] = rom[i]
-
-    def run(self):
-        pygame.init()
-        screen = pygame.display.set_mode((640, 320))
-        pygame.display.set_caption("CHIP-8 Emulator")
-
+            s.memory[0x200 + i] = rom[i]
+    
+    def run(s):
+            
         clock = pygame.time.Clock()
-
-        while self.running:
+        running = True
+        while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    self.running = False
-
-            opcode = (self.memory[self.pc] << 8) | self.memory[self.pc + 1]
-            self.pc += 2
-
-            self.execute_opcode(opcode)
-
-            if self.delay_timer > 0:
-                self.delay_timer -= 1
-
-            if self.sound_timer > 0:
-                self.sound_timer -= 1
-
-            self.draw_display(screen)
-
-            clock.tick(500)
-
-        pygame.quit()
-        sys.exit()
-
-    def execute_opcode(self, opcode):
-        if opcode == 0x00E0:  # Clear the display
-            self.display = [0] * (64 * 32)
-
-        elif opcode == 0x00EE:  # Return from subroutine
-            self.pc = self.stack.pop()
-
-        elif opcode & 0xF000 == 0x1000:  # 1nnn: Jump to address nnn
-            self.pc = opcode & 0x0FFF
-
-        elif opcode & 0xF000 == 0x2000:  # 2nnn: Call subroutine at nnn
-            self.stack.append(self.pc)
-            self.pc = opcode & 0x0FFF
-
-        elif opcode & 0xF000 == 0x3000:  # 3xkk: Skip if Vx == kk
-            x = (opcode & 0x0F00) >> 8
+                    running = False
+            
+            opcode = (s.memory[s.pc] << 8) | s.memory[s.pc + 1]
+            s.pc += 2
+            nnn = opcode & 0x0FFF
             kk = opcode & 0x00FF
-            if self.V[x] == kk:
-                self.pc += 2
-
-        elif opcode & 0xF000 == 0x4000:  # 4xkk: Skip if Vx != kk
-            x = (opcode & 0x0F00) >> 8
-            kk = opcode & 0x00FF
-            if self.V[x] != kk:
-                self.pc += 2
-
-        elif opcode & 0xF00F == 0x8004:  # 8xy4: Add Vx + Vy with carry
+            n = opcode & 0x000F
             x = (opcode & 0x0F00) >> 8
             y = (opcode & 0x00F0) >> 4
-            result = self.V[x] + self.V[y]
-            self.V[0xF] = 1 if result > 255 else 0
-            self.V[x] = result & 0xFF
+            
+            if opcode == 0x00E0:
+                s.display = [0] * (64 * 32)
+                s.draw_display()
+            elif opcode == 0x00EE:
+                s.pc = s.stack.pop()
+            elif opcode & 0xF000 == 0x1000:
+                s.pc = nnn
+            elif opcode & 0xF000 == 0x2000:
+                s.stack.append(s.pc)
+                s.pc = nnn
+            elif opcode & 0xF000 == 0x3000:
+                if s.V[x] == kk:
+                    s.pc += 2
+            elif opcode & 0xF000 == 0x4000:
+                if s.V[x] != kk:
+                    s.pc += 2
+            elif opcode & 0xF000 == 0x5000:
+                if s.V[x] == s.V[y]:
+                    s.pc += 2
+            elif opcode & 0xF000 == 0x6000:
+                s.V[x] = kk
+            elif opcode & 0xF000 == 0x7000:
+                s.V[x] = (s.V[x] + kk) & 0xFF
+            elif opcode & 0xF000 == 0xA000:
+                s.I = nnn
+            elif opcode & 0xF000 == 0xC000:
+                s.V[x] = random.randint(0, 255) & kk
+            elif opcode & 0xF000 == 0xD000:
+                s.V[0xF] = 0
+                for row in range(n):
+                    pixel = s.memory[s.I + row]
+                    for col in range(8):
+                        if pixel & (0x80 >> col):
+                            idx = (s.V[y] + row) * 64 + (s.V[x] + col)
+                            if s.display[idx]:
+                                s.V[0xF] = 1
+                            s.display[idx] ^= 1
+                s.draw_display()
+            if s.delay_timer > 0:
+                s.delay_timer -= 1
+            if s.sound_timer > 0:
+                s.sound_timer -= 1
+            
+            clock.tick(500)
 
-        elif opcode & 0xF000 == 0x6000:  # 6xkk: Set Vx = kk
-            x = (opcode & 0x0F00) >> 8
-            self.V[x] = opcode & 0x00FF
-
-        elif opcode & 0xF000 == 0x7000:  # 7xkk: Add kk to Vx (no carry)
-            x = (opcode & 0x0F00) >> 8
-            self.V[x] = (self.V[x] + (opcode & 0x00FF)) & 0xFF
-
-        elif opcode & 0xF000 == 0xA000:  # Annn: Set I to nnn
-            self.I = opcode & 0x0FFF
-
-        elif opcode & 0xF000 == 0xD000:  # Dxyn: Display/draw
-            x = self.V[(opcode & 0x0F00) >> 8]
-            y = self.V[(opcode & 0x00F0) >> 4]
-            height = opcode & 0x000F
-
-            self.V[0xF] = 0
-
-            for row in range(height):
-                sprite = self.memory[self.I + row]
-                for col in range(8):
-                    if (sprite & (0x80 >> col)) != 0:
-                        index = (x + col) % 64 + ((y + row) % 32) * 64
-                        if self.display[index] == 1:
-                            self.V[0xF] = 1
-                        self.display[index] ^= 1
-
-        else:
-            print(f"Unknown opcode: {hex(opcode)}")
-
-    def draw_display(self, screen):
-        screen.fill((0, 0, 0))
-        for i in range(64 * 32):
-            if self.display[i]:
-                x = (i % 64) * 10
-                y = (i // 64) * 10
-                pygame.draw.rect(screen, (255, 255, 255), (x, y, 10, 10))
-        pygame.display.flip()
-
-if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print("Usage: python chip8.py <ROM file>")
-        sys.exit(1)
-
+if __name__ == "__main__":
     chip8 = Chip8()
     chip8.load_rom(sys.argv[1])
     chip8.run()
