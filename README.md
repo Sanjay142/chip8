@@ -25,5 +25,3 @@ Future Improvements:
 - Improve performance and display accuracy
 - Implement sound support
 
-Feel free to contribute or suggest improvements!
-
